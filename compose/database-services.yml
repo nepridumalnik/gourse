@@ -1,0 +1,24 @@
+version: '3.9'
+
+services:
+  # База данных
+  db:
+    image: mysql
+    restart: always
+    container_name: mysql
+    hostname: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ==PaSsWoRd==
+      MYSQL_DATABASE: main_database
+    ports:
+      - "3306:3306"
+
+  # Админка
+  myadmin:
+    image: phpmyadmin
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ==PaSsWoRd==
+      PMA_HOST: db
+    ports:
+      - "8080:80"

@@ -14,6 +14,15 @@ func main() {
 	handler()
 }
 
+type Article struct {
+	Id                     uint32
+	Title, Anons, FullText string
+}
+
+func (a *Article) IsOk() bool {
+	return a.Title != "" && a.Anons != "" && a.FullText != ""
+}
+
 func index(response http.ResponseWriter, request *http.Request) {
 	template, err := template.ParseFiles(
 		"templates/index.html",
@@ -24,7 +33,27 @@ func index(response http.ResponseWriter, request *http.Request) {
 		fmt.Fprint(response, err.Error())
 	}
 
-	template.ExecuteTemplate(response, "index", nil)
+	db, err := sql.Open("mysql", config)
+	assert(err)
+	defer db.Close()
+
+	res, err := db.Query("SELECT * from `articles`")
+	assert(err)
+	defer res.Close()
+
+	articles := make([]Article, 0)
+
+	for res.Next() {
+		var article Article
+
+		err := res.Scan(&article.Id, &article.Title, &article.Anons, &article.FullText)
+		assert(err)
+
+		articles = append(articles, article)
+		fmt.Println(articles[len(articles)-1])
+	}
+
+	template.ExecuteTemplate(response, "index", articles)
 }
 
 func create(response http.ResponseWriter, request *http.Request) {
@@ -43,16 +72,22 @@ func create(response http.ResponseWriter, request *http.Request) {
 func save_article(response http.ResponseWriter, request *http.Request) {
 	defer http.Redirect(response, request, "/", http.StatusSeeOther)
 
-	title := request.FormValue("title")
-	anons := request.FormValue("anons")
-	full_text := request.FormValue("full_text")
+	a := Article{
+		Title:    request.FormValue("title"),
+		Anons:    request.FormValue("anons"),
+		FullText: request.FormValue("full_text"),
+	}
+
+	if a.IsOk() {
+		return
+	}
 
 	db, err := sql.Open("mysql", config)
 	assert(err)
 	defer db.Close()
 
 	insert, err := db.Query(fmt.Sprintf("INSERT INTO `articles` (`title`, `anons`, `full_text`) VALUES ('%s', '%s', '%s')",
-		title, anons, full_text))
+		a.Title, a.Anons, a.FullText))
 	assert(err)
 	defer insert.Close()
 }
